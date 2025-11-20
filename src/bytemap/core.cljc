@@ -16,7 +16,8 @@
 
     ;; Plot a function
     (bm/plot #(Math/sin %) [40 10] Math/PI 1)"
-  (:require [bytemap.util :as util]))
+  (:require [bytemap.util :as util]
+            [clojure.string :as s]))
 
 ;; Malli Schemas
 (def Point "Schema for a 2D point [x y]" [:tuple :int :int])
@@ -162,14 +163,18 @@
 
   Side-effecting function that prints the canvas and returns nil.
 
+  NOTE: This function outputs line-by-line to avoid nREPL's 1024-byte
+  buffer boundary issue which can corrupt UTF-8 multibyte sequences.
+
   Example:
     (-> (new-canvas 10 5)
         (draw-line [0 0] [20 20])
         (print-canvas!))"
   {:malli/schema [:=> [:cat Canvas] :nil]}
   [canvas]
-  (print (canvas->string canvas))
-  (flush)
+  (let [s (canvas->string canvas)
+        lines (s/split s #"\n")]
+    (doseq [line lines] (println line)))
   nil)
 
 ;; Vector operations
