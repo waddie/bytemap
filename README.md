@@ -1,15 +1,15 @@
-# Bytemap (Clojure)
+# bytemap (Clojure)
 
-Bytemap is a library for creating text-based graphics using Unicode braille characters. Each braille character contains 8 "pixels" arranged in a 2x4 grid, allowing for reasonably high-resolution terminal output.
+`bytemap` is a library for creating text-based graphics using Unicode braille characters. Each braille character contains 8 "pixels" arranged in a 2x4 grid, allowing for reasonably high-resolution terminal output.
 
-This is an idiomatic Clojure/ClojureScript port of the [Janet implementation](../janet).
+This is a Clojure(Script) port of [Ian Henry’s Janet library](https://github.com/ianthehenry/bytemap).
 
 ## Installation
 
 Add to your `deps.edn`:
 
 ```clojure
-{:deps {bytemap/bytemap {:local/root "path/to/bytemap/clojure"}}}
+{:deps {io.github.waddie/bytemap {:git/sha "…"}}
 ```
 
 ## Usage
@@ -100,68 +100,23 @@ Add to your `deps.edn`:
 
 ### Canvas Creation and Rendering
 
-- `(new-canvas width height)` - Creates a new canvas. Dimensions are in "pixels" (braille characters), where each pixel is 2x4 subpixels.
-- `(bounds canvas)` - Returns `[width height]` in subpixels.
+- `(new-canvas width height)` - Creates a new canvas. Dimensions are in "pixels" (braille characters), where each pixel is 2x4 sub-pixels.
+- `(bounds canvas)` - Returns `[width height]` in sub-pixels.
 - `(canvas->string canvas)` - Converts canvas to a string.
-- `(print-canvas! canvas)` - Prints canvas to stdout (side-effecting).
+- `(print-canvas! canvas)` - Prints canvas to standard output (side-effecting).
 
 ### Drawing Functions
 
-- `(draw-point canvas [x y])` - Draws a point at subpixel coordinates. Returns new canvas.
+- `(draw-point canvas [x y])` - Draws a point at sub-pixel coordinates. Returns new canvas.
 - `(draw-point canvas [x y] false)` - Clears a point. Returns new canvas.
-- `(draw-line canvas [x1 y1] [x2 y2])` - Draws a line using Bresenham's algorithm. Returns new canvas.
+- `(draw-line canvas [x1 y1] [x2 y2])` - Draws a line using Bresenham’s algorithm. Returns new canvas.
 - `(plot f [w h] x-scale y-scale & {:keys [axis]})` - Plots a function. Prints output and returns nil.
 
 ### Low-level Functions
 
 - `(braille byte-val)` - Converts a byte (0-255) to a braille character.
-- `(bit-of-subpixel [x y])` - Maps subpixel coordinates to bit position.
-- `(set-subpixel num [x y] value)` - Sets or clears a specific subpixel bit.
-
-## Testing
-
-Run tests with:
-
-```bash
-clojure -M:test -e '(require (quote bytemap.drawing-test)) (clojure.test/run-tests (quote bytemap.drawing-test))'
-```
-
-## Implementation Notes
-
-### Coordinate System
-
-Bytemap uses a 2x4 pixel grid (not 3x6). This deliberate design choice avoids information loss from phantom dots that cannot be rendered in braille characters. While this causes slight distortion in straight lines, it preserves more visual information.
-
-- Canvas dimensions are specified in "pixels" (braille characters)
-- Each pixel contains 2x4 subpixels
-- Drawing coordinates are in subpixels
-- Coordinates are automatically rounded to nearest integer
-- Out-of-bounds coordinates are silently clipped
-
-### Immutability
-
-The Clojure implementation uses an immutable API:
-
-- All drawing functions return a new canvas
-- Original canvas is never modified
-- Use threading macros (`->`) for chaining operations
-- Internally uses transients for performance during canvas building
-
-### Malli Schemas
-
-All public functions include Malli schemas for validation:
-
-```clojure
-(require '[malli.core :as m])
-(require '[bytemap.core :as bm])
-
-(m/validate [:=> [:cat bm/Canvas bm/Point] bm/Canvas]
-            bm/draw-point)  ;; => true
-```
-
-### ClojureScript Support
-
-All code is in `.cljc` files and works in both Clojure and ClojureScript with minimal reader conditionals.
+- `(bit-of-sub-pixel [x y])` - Maps sub-pixel coordinates to bit position.
+- `(set-sub-pixel num [x y] value)` - Sets or clears a specific sub-pixel bit.
 
 ## Differences from Janet Implementation
 
@@ -172,4 +127,6 @@ All code is in `.cljc` files and works in both Clojure and ClojureScript with mi
 
 ## License
 
-Same license as the Janet implementation (see parent directory).
+Copyright © 2025 Tom Waddington
+
+Distributed under the MIT License. See LICENSE file for details.
