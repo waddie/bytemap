@@ -1,0 +1,311 @@
+(ns bytemap.core
+  "Text-based canvas using braille characters.
+
+  Bytemap creates bitmaps using Unicode braille characters, where each character
+  represents a 2x4 grid of pixels. This allows for reasonably high-resolution
+  text-based graphics in terminal output.
+
+  Basic usage:
+    (require '[bytemap.core :as bm])
+
+    ;; Create a canvas and draw
+    (-> (bm/new-canvas 10 5)
+        (bm/draw-point [5 10])
+        (bm/draw-line [0 0] [20 20])
+        (bm/print-canvas!))
+
+    ;; Plot a function
+    (bm/plot #(Math/sin %) [40 10] Math/PI 1)"
+  (:require [bytemap.util :as util]
+            [malli.core :as m]))
+
+;; Malli Schemas
+(def Point
+  "Schema for a 2D point [x y]"
+  [:tuple :int :int])
+
+(def Subpixel
+  "Schema for a subpixel coordinate [x y] where x is 0-1, y is 0-3"
+  [:tuple [:int {:min 0 :max 1}] [:int {:min 0 :max 3}]])
+
+(def Canvas
+  "Schema for a canvas data structure"
+  [:map
+   [:width :int]
+   [:height :int]
+   [:pixels [:vector util/ByteValue]]])
+
+;; Constants
+(def ^:private braille-offset 0x2800)
+
+;; Core Functions
+
+(defn braille
+  "Converts a byte (0-255) to a braille Unicode character.
+
+  Each bit in the byte corresponds to one of the 8 dots in a braille character.
+  The byte is added to the braille Unicode offset (0x2800) to get the final character.
+
+  Example:
+    (braille 0)   => \"⠀\"  ; blank
+    (braille 255) => \"⣿\"  ; all dots filled"
+  {:malli/schema [:=> [:cat util/ByteValue] :string]}
+  [byte-val]
+  (str (char (+ braille-offset byte-val))))
+
+(defn bit-of-subpixel
+  "Maps a subpixel coordinate [x y] to its corresponding bit position (0-7).
+
+  The mapping follows the braille standard layout:
+  - x is 0-1 (left or right column)
+  - y is 0-3 (top to bottom)
+
+  The bit layout is:
+    [0,0]=0  [1,0]=3
+    [0,1]=1  [1,1]=4
+    [0,2]=2  [1,2]=5
+    [0,3]=6  [1,3]=7
+
+  Example:
+    (bit-of-subpixel [0 0]) => 0
+    (bit-of-subpixel [1 3]) => 7"
+  {:malli/schema [:=> [:cat Subpixel] util/Bit]}
+  [[x y]]
+  (if (= y 3)
+    (+ 6 x)
+    (+ (* 3 x) y)))
+
+(defn set-subpixel
+  "Sets or clears a specific subpixel in a byte value.
+
+  Returns a new byte with the specified subpixel bit set or cleared.
+
+  Example:
+    (set-subpixel 0 [0 0] true)  => 1
+    (set-subpixel 255 [0 0] false) => 254"
+  {:malli/schema [:=> [:cat util/ByteValue Subpixel :any] util/ByteValue]}
+  [num subpixel value]
+  (util/set-bit num (bit-of-subpixel subpixel) value))
+
+(defn new-canvas
+  "Creates a new canvas with the specified width and height in 'pixels'.
+
+  Each pixel is a braille character representing a 2x4 grid of subpixels.
+  So a 10x5 canvas has dimensions of 20x20 in subpixel coordinates.
+
+  Example:
+    (new-canvas 10 5)
+    => {:width 10, :height 5, :pixels [0 0 0 ...]}"
+  {:malli/schema [:=> [:cat :int :int] Canvas]}
+  [width height]
+  {:width width
+   :height height
+   :pixels (vec (repeat (* width height) 0))})
+
+(defn bounds
+  "Returns the canvas dimensions in subpixels [width height].
+
+  Since each pixel is 2x4 subpixels, the subpixel dimensions are:
+  - width * 2
+  - height * 4
+
+  Example:
+    (bounds (new-canvas 10 5)) => [20 20]"
+  {:malli/schema [:=> [:cat Canvas] [:tuple :int :int]]}
+  [{:keys [width height]}]
+  [(* 2 width) (* 4 height)])
+
+(defn draw-point
+  "Draws a point at subpixel coordinates [x y] on the canvas.
+
+  Returns a new canvas with the point drawn. Coordinates are rounded to
+  nearest integer. Points outside canvas bounds are silently ignored.
+
+  The optional value parameter determines whether to set (true) or clear (false)
+  the point. Defaults to true.
+
+  Example:
+    (-> (new-canvas 10 5)
+        (draw-point [10 10])
+        (draw-point [5 5] false))  ; clear a point"
+  {:malli/schema [:function
+                  [:=> [:cat Canvas Point] Canvas]
+                  [:=> [:cat Canvas Point :any] Canvas]]}
+  ([canvas point]
+   (draw-point canvas point true))
+  ([canvas [x y] value]
+   (let [{:keys [width height pixels]} canvas
+         x (Math/round (double x))
+         y (Math/round (double y))
+         pixel-x (util/idiv x 2)
+         pixel-y (util/idiv y 4)]
+     (if (or (< pixel-x 0) (< pixel-y 0)
+             (>= pixel-x width) (>= pixel-y height))
+       canvas  ; out of bounds, return unchanged
+       (let [pixel-ix (+ (* pixel-y width) pixel-x)
+             subpixel [(mod x 2) (mod y 4)]]
+         (update canvas :pixels
+                 (fn [pixels]
+                   (update pixels pixel-ix
+                           #(set-subpixel % subpixel value)))))))))
+
+(defn canvas->string
+  "Converts a canvas to a string representation using braille characters.
+
+  Returns a multi-line string where each line represents one row of the canvas.
+
+  Example:
+    (-> (new-canvas 5 3)
+        (draw-point [5 6])
+        (canvas->string))
+    => \"⠀⠀⡀⠀⠀\\n⠀⠀⠀⠀⠀\\n⠀⠀⠀⠀⠀\""
+  {:malli/schema [:=> [:cat Canvas] :string]}
+  [{:keys [width height pixels]}]
+  (apply str
+         (for [y (range height)]
+           (str (apply str
+                       (for [x (range width)
+                             :let [i (+ (* y width) x)]]
+                         (braille (nth pixels i))))
+                (when (< y (dec height)) "\n")))))
+
+(defn print-canvas!
+  "Prints a canvas to stdout using braille characters.
+
+  Side-effecting function that prints the canvas and returns nil.
+
+  Example:
+    (-> (new-canvas 10 5)
+        (draw-line [0 0] [20 20])
+        (print-canvas!))"
+  {:malli/schema [:=> [:cat Canvas] :nil]}
+  [canvas]
+  (print (canvas->string canvas))
+  (flush)
+  nil)
+
+;; Vector operations
+
+(defn- vec2-add
+  "Adds two 2D vectors."
+  [[x0 y0] [x1 y1]]
+  [(+ x0 x1) (+ y0 y1)])
+
+(defn- span
+  "Calculates the span between two points along an axis (0=x, 1=y)."
+  [axis p0 p1]
+  (- (nth p1 axis) (nth p0 axis)))
+
+(defn- sign
+  "Returns the sign of a number: -1, 0, or 1."
+  [x]
+  (cond
+    (< x 0) -1
+    (> x 0) 1
+    :else 0))
+
+(defn- make-vec2
+  "Constructs a 2D vector from major/minor axis values.
+  major-axis is 0 for x, 1 for y."
+  [major-axis major minor]
+  (case major-axis
+    0 [major minor]
+    1 [minor major]))
+
+(defn draw-line
+  "Draws a line from start point to end point using Bresenham's algorithm.
+
+  Returns a new canvas with the line drawn. Both start and end are subpixel
+  coordinates.
+
+  Example:
+    (-> (new-canvas 10 5)
+        (draw-line [0 0] [20 20])
+        (draw-line [0 20] [20 0]))"
+  {:malli/schema [:=> [:cat Canvas Point Point] Canvas]}
+  [canvas start end]
+  (let [x-axis 0
+        y-axis 1
+        x-span (span x-axis start end)
+        y-span (span y-axis start end)
+        ;; Determine major and minor axes
+        [major-axis minor-axis] (if (< (Math/abs y-span) (Math/abs x-span))
+                                   [x-axis y-axis]
+                                   [y-axis x-axis])
+        ;; Ensure we draw from lower to higher major coordinate
+        [start end] (if (< (nth start major-axis) (nth end major-axis))
+                      [start end]
+                      [end start])
+        minor-step (sign (- (nth end minor-axis) (nth start minor-axis)))
+        run (- (nth end major-axis) (nth start major-axis))
+        rise (Math/abs (- (nth end minor-axis) (nth start minor-axis)))]
+    ;; Bresenham's algorithm using loop/recur
+    (loop [canvas canvas
+           major (nth start major-axis)
+           minor (nth start minor-axis)
+           err (- (* 2 rise) run)]
+      (if (> major (nth end major-axis))
+        canvas
+        (let [canvas (draw-point canvas (make-vec2 major-axis major minor))
+              [minor err] (if (> err 0)
+                           [(+ minor minor-step)
+                            (- err (* 2 run))]
+                           [minor err])]
+          (recur canvas
+                 (inc major)
+                 minor
+                 (+ err (* 2 rise))))))))
+
+(defn plot
+  "Plots a mathematical function on a new canvas.
+
+  Arguments:
+  - f: Function to plot (takes a number, returns a number)
+  - [w h]: Canvas dimensions in pixels
+  - x-scale: The range of x values (from -x-scale to +x-scale)
+  - y-scale: The range of y values (from -y-scale to +y-scale)
+
+  Options:
+  - :axis - Whether to draw x and y axes (default: true)
+
+  The function is sampled at regular intervals across the canvas width,
+  and consecutive points are connected with lines.
+
+  Example:
+    (plot #(Math/sin %) [40 10] Math/PI 1)
+    (plot #(Math/cos %) [20 10] Math/PI 1 :axis false)"
+  {:malli/schema [:function
+                  [:=> [:cat fn? [:tuple :int :int] number? number?] :nil]
+                  [:=> [:cat fn? [:tuple :int :int] number? number?
+                        [:* :any]] :nil]]}
+  [f [w h] x-scale y-scale & {:keys [axis] :or {axis true}}]
+  (let [canvas (new-canvas w h)
+        [w h] (bounds canvas)
+        canvas (if axis
+                 ;; Draw axes
+                 (let [canvas (reduce (fn [c i]
+                                       (draw-point c [(/ w 2) i]))
+                                     canvas
+                                     (range h))]
+                   (reduce (fn [c i]
+                            (draw-point c [i (/ h 2)]))
+                          canvas
+                          (range w)))
+                 canvas)
+        ;; Narrow y range slightly to avoid clipping extremes
+        y-scale (* y-scale (/ (inc h) h))]
+    ;; Sample function and draw lines between consecutive points
+    (loop [i 0
+           prev-point nil
+           canvas canvas]
+      (if (>= i w)
+        (print-canvas! canvas)
+        (let [;; x spans -0.5 to 0.5 (inclusive)
+              x (- (/ i (dec w)) 0.5)
+              y (/ (f (* x 2 x-scale)) y-scale -2)
+              p [(* (+ x 0.5) (dec w))
+                 (* (+ y 0.5) h)]
+              canvas (if prev-point
+                      (draw-line canvas prev-point p)
+                      canvas)]
+          (recur (inc i) p canvas))))))
