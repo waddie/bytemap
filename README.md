@@ -9,7 +9,7 @@ This is a Clojure(Script) port of [Ian Henry’s Janet library](https://github.c
 Add to your `deps.edn`:
 
 ```clojure
-{:deps {io.github.waddie/bytemap {:git/sha "…"}}
+{:deps {io.github.waddie/bytemap.clj {:git/sha "…"}}
 ```
 
 ## Usage
