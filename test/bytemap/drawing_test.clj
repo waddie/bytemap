@@ -35,7 +35,9 @@
     (let [canvas (bm/new-canvas 10 5)
           canvas (reduce (fn [c [x y]] (bm/draw-point c [x y]))
                          canvas
-                         (for [x (range 30) y (range 30)] [x y]))]
+                         (for [x (range 30)
+                               y (range 30)]
+                           [x y]))]
       (test-canvas-output
        canvas
        "⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿\n⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿\n⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿\n⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿\n⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿"))))
@@ -82,10 +84,10 @@
 
 (deftest radial-lines-test
   (testing "Drawing lines in all directions (radial pattern)"
-    (let [tau (* 2 Math/PI)
-          c 30
+    (let [tau    (* 2 Math/PI)
+          c      30
           canvas (bm/new-canvas c (/ c 2))
-          r (- c 1)
+          r      (- c 1)
           points 20
           canvas (reduce (fn [canvas i]
                            (let [angle (+ 0.1 (* i (/ tau points)))]

@@ -127,8 +127,8 @@
   ([canvas point] (draw-point canvas point true))
   ([canvas [x y] value]
    (let [{:keys [width height _]} canvas
-         x (Math/round (double x))
-         y (Math/round (double y))
+         x       (Math/round (double x))
+         y       (Math/round (double y))
          pixel-x (util/idiv x 2)
          pixel-y (util/idiv y 4)]
      (if (or (< pixel-x 0) (< pixel-y 0) (>= pixel-x width) (>= pixel-y height))
@@ -156,7 +156,7 @@
   (apply str
          (for [y (range height)]
            (str (apply str
-                       (for [x (range width)
+                       (for [x    (range width)
                              :let [i (+ (* y width) x)]]
                          (braille (nth pixels i))))
                 (when (< y (dec height)) "\n")))))
@@ -175,9 +175,10 @@
         (print-canvas!))"
   {:malli/schema [:=> [:cat Canvas] :nil]}
   [canvas]
-  (let [s (canvas->string canvas)
+  (let [s     (canvas->string canvas)
         lines (s/split s #"\n")]
-    (doseq [line lines] (println line)))
+    (doseq [line lines]
+      (println line)))
   nil)
 
 ;; Vector operations
@@ -214,10 +215,10 @@
         (draw-line [0 20] [20 0]))"
   {:malli/schema [:=> [:cat Canvas Point Point] Canvas]}
   [canvas start end]
-  (let [x-axis 0
-        y-axis 1
-        x-span (span x-axis start end)
-        y-span (span y-axis start end)
+  (let [x-axis      0
+        y-axis      1
+        x-span      (span x-axis start end)
+        y-span      (span y-axis start end)
         ;; Determine major and minor axes
         [major-axis minor-axis] (if (< (Math/abs y-span) (Math/abs x-span))
                                   [x-axis y-axis]
@@ -226,17 +227,17 @@
         [start end] (if (< (nth start major-axis) (nth end major-axis))
                       [start end]
                       [end start])
-        minor-step (sign (- (nth end minor-axis) (nth start minor-axis)))
-        run (- (nth end major-axis) (nth start major-axis))
-        rise (Math/abs (- (nth end minor-axis) (nth start minor-axis)))]
+        minor-step  (sign (- (nth end minor-axis) (nth start minor-axis)))
+        run         (- (nth end major-axis) (nth start major-axis))
+        rise        (Math/abs (- (nth end minor-axis) (nth start minor-axis)))]
     ;; Bresenham's algorithm using loop/recur
     (loop [canvas canvas
-           major (nth start major-axis)
-           minor (nth start minor-axis)
-           err (- (* 2 rise) run)]
+           major  (nth start major-axis)
+           minor  (nth start minor-axis)
+           err    (- (* 2 rise) run)]
       (if (> major (nth end major-axis))
         canvas
-        (let [canvas (draw-point canvas (make-vec2 major-axis major minor))
+        (let [canvas      (draw-point canvas (make-vec2 major-axis major minor))
               [minor err] (if (> err 0)
                             [(+ minor minor-step) (- err (* 2 run))]
                             [minor err])]
@@ -266,27 +267,29 @@
    [:function [:=> [:cat fn? [:tuple :int :int] number? number?] :string]
     [:=> [:cat fn? [:tuple :int :int] number? number? [:* :any]] :string]]}
   [f [w h] x-scale y-scale & {:keys [axis] :or {axis true}}]
-  (let [canvas (new-canvas w h)
-        [w h] (bounds canvas)
-        canvas
-        (if axis
-          ;; Draw axes
-          (let [canvas
-                (reduce (fn [c i] (draw-point c [(/ w 2) i])) canvas (range h))]
-            (reduce (fn [c i] (draw-point c [i (/ h 2)])) canvas (range w)))
-          canvas)
+  (let [canvas  (new-canvas w h)
+        [w h]   (bounds canvas)
+        canvas  (if axis
+                  ;; Draw axes
+                  (let [canvas (reduce (fn [c i] (draw-point c [(/ w 2) i]))
+                                       canvas
+                                       (range h))]
+                    (reduce (fn [c i] (draw-point c [i (/ h 2)]))
+                            canvas
+                            (range w)))
+                  canvas)
         ;; Narrow y range slightly to avoid clipping extremes
         y-scale (* y-scale (/ (inc h) h))]
     ;; Sample function and draw lines between consecutive points
-    (loop [i 0
+    (loop [i          0
            prev-point nil
-           canvas canvas]
+           canvas     canvas]
       (if (>= i w)
         (canvas->string canvas)
         (let [;; x spans -0.5 to 0.5 (inclusive)
-              x (- (/ i (dec w)) 0.5)
-              y (/ (f (* x 2 x-scale)) y-scale -2)
-              p [(* (+ x 0.5) (dec w)) (* (+ y 0.5) h)]
+              x      (- (/ i (dec w)) 0.5)
+              y      (/ (f (* x 2 x-scale)) y-scale -2)
+              p      [(* (+ x 0.5) (dec w)) (* (+ y 0.5) h)]
               canvas (if prev-point (draw-line canvas prev-point p) canvas)]
           (recur (inc i) p canvas))))))
 
@@ -312,7 +315,8 @@
    [:function [:=> [:cat fn? [:tuple :int :int] number? number?] :nil]
     [:=> [:cat fn? [:tuple :int :int] number? number? [:* :any]] :nil]]}
   [f [w h] x-scale y-scale & {:keys [axis] :or {axis true}}]
-  (let [s (plot->string f [w h] x-scale y-scale :axis axis)
+  (let [s     (plot->string f [w h] x-scale y-scale :axis axis)
         lines (s/split s #"\n")]
-    (doseq [line lines] (println line))
+    (doseq [line lines]
+      (println line))
     nil))
