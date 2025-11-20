@@ -15,7 +15,10 @@
         (bm/print-canvas!))
 
     ;; Plot a function
-    (bm/plot #(Math/sin %) [40 10] Math/PI 1)"
+    (bm/print-plot! #(Math/sin %) [40 10] Math/PI 1)
+
+    ;; Or get the plot as a string
+    (bm/plot->string #(Math/cos %) [40 10] Math/PI 1)"
   (:require [bytemap.util :as util]
             [clojure.string :as s]))
 
@@ -239,8 +242,8 @@
                             [minor err])]
           (recur canvas (inc major) minor (+ err (* 2 rise))))))))
 
-(defn plot
-  "Plots a mathematical function on a new canvas.
+(defn plot->string
+  "Plots a mathematical function and returns the string representation.
 
   Arguments:
   - f: Function to plot (takes a number, returns a number)
@@ -254,12 +257,14 @@
   The function is sampled at regular intervals across the canvas width,
   and consecutive points are connected with lines.
 
+  Returns the canvas as a string using braille characters.
+
   Example:
-    (plot #(Math/sin %) [40 10] Math/PI 1)
-    (plot #(Math/cos %) [20 10] Math/PI 1 :axis false)"
+    (plot->string #(Math/sin %) [40 10] Math/PI 1)
+    (plot->string #(Math/cos %) [20 10] Math/PI 1 :axis false)"
   {:malli/schema
-   [:function [:=> [:cat fn? [:tuple :int :int] number? number?] :nil]
-    [:=> [:cat fn? [:tuple :int :int] number? number? [:* :any]] :nil]]}
+   [:function [:=> [:cat fn? [:tuple :int :int] number? number?] :string]
+    [:=> [:cat fn? [:tuple :int :int] number? number? [:* :any]] :string]]}
   [f [w h] x-scale y-scale & {:keys [axis] :or {axis true}}]
   (let [canvas (new-canvas w h)
         [w h] (bounds canvas)
@@ -277,10 +282,37 @@
            prev-point nil
            canvas canvas]
       (if (>= i w)
-        (print-canvas! canvas)
+        (canvas->string canvas)
         (let [;; x spans -0.5 to 0.5 (inclusive)
               x (- (/ i (dec w)) 0.5)
               y (/ (f (* x 2 x-scale)) y-scale -2)
               p [(* (+ x 0.5) (dec w)) (* (+ y 0.5) h)]
               canvas (if prev-point (draw-line canvas prev-point p) canvas)]
           (recur (inc i) p canvas))))))
+
+(defn print-plot!
+  "Plots a mathematical function on a new canvas and prints it.
+
+  Arguments:
+  - f: Function to plot (takes a number, returns a number)
+  - [w h]: Canvas dimensions in pixels
+  - x-scale: The range of x values (from -x-scale to +x-scale)
+  - y-scale: The range of y values (from -y-scale to +y-scale)
+
+  Options:
+  - :axis - Whether to draw x and y axes (default: true)
+
+  The function is sampled at regular intervals across the canvas width,
+  and consecutive points are connected with lines.
+
+  Example:
+    (print-plot! #(Math/sin %) [40 10] Math/PI 1)
+    (print-plot! #(Math/cos %) [20 10] Math/PI 1 :axis false)"
+  {:malli/schema
+   [:function [:=> [:cat fn? [:tuple :int :int] number? number?] :nil]
+    [:=> [:cat fn? [:tuple :int :int] number? number? [:* :any]] :nil]]}
+  [f [w h] x-scale y-scale & {:keys [axis] :or {axis true}}]
+  (let [s (plot->string f [w h] x-scale y-scale :axis axis)
+        lines (s/split s #"\n")]
+    (doseq [line lines] (println line))
+    nil))

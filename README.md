@@ -70,8 +70,8 @@ Add to your `deps.edn`:
 ### Plotting functions
 
 ```clojure
-;; Plot a sine wave
-(bm/plot #(Math/sin %) [40 10] Math/PI 1)
+;; Plot a sine wave (prints to stdout)
+(bm/print-plot! #(Math/sin %) [40 10] Math/PI 1)
 ;; ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⢀⠤⠖⠚⠒⠒⢤⡀⠀⠀⠀⠀⠀⠀
 ;; ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⢀⠔⠁⠀⠀⠀⠀⠀⠀⠈⠢⡀⠀⠀⠀⠀
 ;; ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⢀⠔⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢆⠀⠀⠀
@@ -83,8 +83,11 @@ Add to your `deps.edn`:
 ;; ⠀⠀⠀⠀⠑⢄⠀⠀⠀⠀⠀⠀⠀⠀⡠⠊⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ;; ⠀⠀⠀⠀⠀⠀⠑⢤⣀⣀⢀⣀⡤⠊⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 
+;; Get plot as a string (no side effects)
+(def plot-str (bm/plot->string #(Math/cos %) [40 10] Math/PI 1))
+
 ;; Plot without axes
-(bm/plot #(Math/sin %) [40 10] Math/PI 1 :axis false)
+(bm/print-plot! #(Math/sin %) [40 10] Math/PI 1 :axis false)
 ;; ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠤⠖⠚⠒⠒⢤⡀⠀⠀⠀⠀⠀⠀
 ;; ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠔⠁⠀⠀⠀⠀⠀⠀⠈⠢⡀⠀⠀⠀⠀
 ;; ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠔⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢆⠀⠀⠀
@@ -122,7 +125,11 @@ Add to your `deps.edn`:
 - `(draw-point canvas [x y])` - Draws a point at sub-pixel coordinates. Returns new canvas.
 - `(draw-point canvas [x y] false)` - Clears a point. Returns new canvas.
 - `(draw-line canvas [x1 y1] [x2 y2])` - Draws a line using Bresenham’s algorithm. Returns new canvas.
-- `(plot f [w h] x-scale y-scale & {:keys [axis]})` - Plots a function. Prints output and returns nil.
+
+### Plotting functions
+
+- `(plot->string f [w h] x-scale y-scale & {:keys [axis]})` - Plots a function and returns the string representation.
+- `(print-plot! f [w h] x-scale y-scale & {:keys [axis]})` - Plots a function, prints to standard output, and returns nil.
 
 ### Low-level functions
 

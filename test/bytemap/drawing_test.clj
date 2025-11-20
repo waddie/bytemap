@@ -47,18 +47,28 @@
     (let
       [expected
        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⢀⠤⠖⠚⠒⠒⢤⡀⠀⠀⠀⠀⠀⠀\n⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⢀⠔⠁⠀⠀⠀⠀⠀⠀⠈⠢⡀⠀⠀⠀⠀\n⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⢀⠔⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢆⠀⠀⠀\n⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⢠⠊⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠱⡀⠀\n⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡷⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⢄\n⠹⡉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⢉⠝⡏⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉\n⠀⠘⢄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠊⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀\n⠀⠀⠈⠢⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡰⠁⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀\n⠀⠀⠀⠀⠑⢄⠀⠀⠀⠀⠀⠀⠀⠀⡠⠊⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀\n⠀⠀⠀⠀⠀⠀⠑⢤⣀⣀⢀⣀⡤⠊⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀\n"]
-      ;; Capture output from plot function
+      ;; Capture output from print-plot! function
       (is (= expected
-             (with-out-str (bm/plot #(Math/sin %) [40 10] Math/PI 1)))))))
+             (with-out-str
+               (bm/print-plot! #(Math/sin %) [40 10] Math/PI 1)))))))
 
 (deftest plot-draws-lines-test
   (testing "Plot draws lines rather than individual points"
     (let
       [expected
        "⠀⠀⠀⠀⠀⠀⢠⠲⡀⠀\n⠀⠀⠀⠀⠀⠀⡇⠀⢇⠀\n⠀⠀⠀⠀⠀⢰⠁⠀⠸⡀\n⠀⠀⠀⠀⠀⡸⠀⠀⠀⡇\n⠀⠀⠀⠀⠀⡇⠀⠀⠀⢣\n⡇⠀⠀⠀⢰⠁⠀⠀⠀⠈\n⢸⠀⠀⠀⡸⠀⠀⠀⠀⠀\n⠈⡆⠀⠀⡇⠀⠀⠀⠀⠀\n⠀⢇⠀⢸⠀⠀⠀⠀⠀⠀\n⠀⠘⣄⠇⠀⠀⠀⠀⠀⠀\n"]
-      (is (= expected
-             (with-out-str
-               (bm/plot #(Math/sin %) [10 10] Math/PI 1 :axis false)))))))
+      (is (=
+           expected
+           (with-out-str
+             (bm/print-plot! #(Math/sin %) [10 10] Math/PI 1 :axis false)))))))
+
+(deftest plot->string-test
+  (testing "plot->string returns string without printing"
+    (let
+      [expected
+       "⠀⠀⠀⠀⠀⠀⢠⠲⡀⠀\n⠀⠀⠀⠀⠀⠀⡇⠀⢇⠀\n⠀⠀⠀⠀⠀⢰⠁⠀⠸⡀\n⠀⠀⠀⠀⠀⡸⠀⠀⠀⡇\n⠀⠀⠀⠀⠀⡇⠀⠀⠀⢣\n⡇⠀⠀⠀⢰⠁⠀⠀⠀⠈\n⢸⠀⠀⠀⡸⠀⠀⠀⠀⠀\n⠈⡆⠀⠀⡇⠀⠀⠀⠀⠀\n⠀⢇⠀⢸⠀⠀⠀⠀⠀⠀\n⠀⠘⣄⠇⠀⠀⠀⠀⠀⠀"
+       result (bm/plot->string #(Math/sin %) [10 10] Math/PI 1 :axis false)]
+      (is (= expected result)))))
 
 (deftest line-test
   (testing "Drawing multiple lines"
