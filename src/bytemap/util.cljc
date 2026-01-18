@@ -3,8 +3,16 @@
 
 ;; Malli Schemas
 (def Int "Schema for integer values" int?)
-(def Bit "Schema for bit positions (0-7)" [:int {:min 0 :max 7}])
-(def ByteValue "Schema for byte values (0-255)" [:int {:min 0 :max 255}])
+(def Bit
+  "Schema for bit positions (0-7)"
+  [:int
+   {:max 7
+    :min 0}])
+(def ByteValue
+  "Schema for byte values (0-255)"
+  [:int
+   {:max 255
+    :min 0}])
 
 (defn set-bit
   "Sets or clears bit i in num.

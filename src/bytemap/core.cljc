@@ -27,7 +27,13 @@
 
 (def Subpixel
   "Schema for a subpixel coordinate [x y] where x is 0-1, y is 0-3"
-  [:tuple [:int {:min 0 :max 1}] [:int {:min 0 :max 3}]])
+  [:tuple
+   [:int
+    {:max 1
+     :min 0}]
+   [:int
+    {:max 3
+     :min 0}]])
 
 (def Canvas
   "Schema for a canvas data structure"
@@ -94,7 +100,9 @@
     => {:width 10, :height 5, :pixels [0 0 0 ...]}"
   {:malli/schema [:=> [:cat :int :int] Canvas]}
   [width height]
-  {:width width :height height :pixels (vec (repeat (* width height) 0))})
+  {:height height
+   :pixels (vec (repeat (* width height) 0))
+   :width  width})
 
 (defn bounds
   "Returns the canvas dimensions in subpixels [width height].
@@ -183,19 +191,19 @@
 
 ;; Vector operations
 
-(defn- span
+(defn ^:private span
   "Calculates the span between two points along an axis (0=x, 1=y)."
   [axis p0 p1]
   (- (nth p1 axis) (nth p0 axis)))
 
-(defn- sign
+(defn ^:private sign
   "Returns the sign of a number: -1, 0, or 1."
   [x]
   (cond (< x 0) -1
         (> x 0) 1
         :else 0))
 
-(defn- make-vec2
+(defn ^:private make-vec2
   "Constructs a 2D vector from major/minor axis values.
   major-axis is 0 for x, 1 for y."
   [major-axis major minor]
@@ -266,7 +274,9 @@
   {:malli/schema
    [:function [:=> [:cat fn? [:tuple :int :int] number? number?] :string]
     [:=> [:cat fn? [:tuple :int :int] number? number? [:* :any]] :string]]}
-  [f [w h] x-scale y-scale & {:keys [axis] :or {axis true}}]
+  [f [w h] x-scale y-scale &
+   {:keys [axis]
+    :or   {axis true}}]
   (let [canvas  (new-canvas w h)
         [w h]   (bounds canvas)
         canvas  (if axis
@@ -314,7 +324,9 @@
   {:malli/schema
    [:function [:=> [:cat fn? [:tuple :int :int] number? number?] :nil]
     [:=> [:cat fn? [:tuple :int :int] number? number? [:* :any]] :nil]]}
-  [f [w h] x-scale y-scale & {:keys [axis] :or {axis true}}]
+  [f [w h] x-scale y-scale &
+   {:keys [axis]
+    :or   {axis true}}]
   (let [s     (plot->string f [w h] x-scale y-scale :axis axis)
         lines (s/split s #"\n")]
     (doseq [line lines]
