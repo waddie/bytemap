@@ -105,6 +105,40 @@ Add to your `deps.edn`:
 ;; ⠀⠀⠀⠀⠀⠀⠑⢤⣀⣀⢀⣀⡤⠊⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ```
 
+### Plotting a Histogram
+
+```clojure
+;; Plot a histogram of frequencies, with stats (prints to stdout)
+(bp/plot-histogram [1 1 2 2 2 3 3 3 3 3 4 4])
+;; ⠀⠀⣿⠀
+;; ⠀⠀⣿⠀
+;; ⠀⣿⣿⠀
+;; ⣿⣿⣿⣿
+;; ⣿⣿⣿⣿
+;;   μ = 2.583333
+;;   σ = 1.048445
+
+;; Horizontal orientation
+(bp/plot-histogram [1 1 2 2 2 3 3 3 3 3 4 4] :orientation :horizontal)
+;; ⣿⡇⠀⠀
+;; ⣿⣷⡆⠀
+;; ⣿⣿⣧⣤
+;; ⣿⡿⠿⠿
+;; ⣿⡇⠀⠀
+;;   μ = 2.583333
+;;   σ = 1.048445
+
+;; Build a histogram canvas directly, without the frequencies/stats wrapper
+(-> (bm/new-canvas 10 5)
+    (bp/histogram (sorted-map 0 1, 1 3, 2 5, 3 2))
+    (bm/print-canvas!))
+;; ⠀⠀⠀⠀⠀⣿⣿⡇⠀⠀
+;; ⠀⠀⠀⠀⠀⣿⣿⡇⠀⠀
+;; ⠀⠀⢸⣿⣿⣿⣿⡇⠀⠀
+;; ⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿
+;; ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+```
+
 ### Working with Canvas as Data
 
 ```clojure
@@ -136,6 +170,8 @@ Add to your `deps.edn`:
 - `(plot canvas f & {:keys [axis x-scale y-scale]})` - Plots a function.
 - `(plot->string f [w h] x-scale y-scale & {:keys [axis]})` - Plots a function and returns the string representation.
 - `(print-plot! f [w h] x-scale y-scale & {:keys [axis]})` - Plots a function, prints to standard output, and returns nil.
+- `(histogram canvas bins & {:keys [orientation]})` - Draws a histogram of `bins` (a map of value → count, e.g. `clojure.core/frequencies` output) on a canvas, with `:vertical` (default) or `:horizontal` bars. Downsamples via `bytemap.util/downsample-histogram` if `bins` has more entries than available columns/rows. Returns new canvas.
+- `(plot-histogram xs & {:keys [w h stats orientation]})` - Convenience function: computes `(frequencies xs)`, builds and prints a histogram sized to fit (or to explicit `w`/`h` pixels), and prints `μ`/`σ` statistics by default (`:stats false` to suppress). Returns nil.
 
 ### Low-Level Functions (bytemap.core)
 

@@ -4,6 +4,7 @@
             [bytemap.core :as bm]
             [bytemap.plot :as bp]
             [bytemap.util :as bu]
+            [clojure.pprint :refer [pprint]]
             [clojure.repl :refer [doc source]]
             [cognitect.test-runner.api :as test-runner]
             [malli.core :as m]
@@ -66,8 +67,10 @@
 
 (comment
   (let [random (Random. 1234)
-        nums   (stream-seq! (.ints random 10000000 0 11))]
-    (bp/plot-histogram nums)))
+        nums   (stream-seq! (.ints random 10000000 0 11))
+        m      (into (sorted-map) (frequencies nums))]
+    (pprint m)
+    (pprint (bu/downsample-histogram m 5))))
 
 (snap! (str "\n"
             (bm/canvas->string (loop [canvas (bm/new-canvas 5 3)

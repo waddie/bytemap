@@ -90,3 +90,53 @@
        result
        (str "\n" (bp/plot->string #(Math/sin %) [10 10] Math/PI 1 :axis false))]
       (is (= expected result)))))
+
+(deftest histogram-vertical-basic-test
+  (testing "Vertical histogram with one column-pair per bin"
+    (let [bins   (sorted-map 0 1 1 3 2 5 3 2)
+          canvas (bp/histogram (bm/new-canvas 4 5) bins)]
+      (snap! (str "\n" (bm/canvas->string canvas))
+             "
+⠀⠀⣿⠀
+⠀⠀⣿⠀
+⠀⣿⣿⠀
+⠀⣿⣿⣿
+⣿⣿⣿⣿"))))
+
+(deftest histogram-horizontal-basic-test
+  (testing "Horizontal histogram with one row-pair per bin"
+    (let [bins   (sorted-map 0 1 1 3 2 5 3 2)
+          canvas (bp/histogram (bm/new-canvas 5 4)
+                               bins
+                               :orientation
+                               :horizontal)]
+      (snap! (str "\n" (bm/canvas->string canvas))
+             "
+⣿⠀⠀⠀⠀
+⣿⣿⣿⠀⠀
+⣿⣿⣿⣿⣿
+⣿⣿⠀⠀⠀"))))
+
+(deftest histogram-downsampling-test
+  (testing "Vertical histogram downsamples when bins exceed available columns"
+    (let [bins   (into (sorted-map) (map vector (range 20) (repeat 1)))
+          canvas (bp/histogram (bm/new-canvas 4 3) bins)]
+      (snap! (str "\n" (bm/canvas->string canvas)) "
+⣿⣿⣿⣿
+⣿⣿⣿⣿
+⣿⣿⣿⣿"))))
+
+(deftest histogram-zero-bin-test
+  (testing "Zero-valued bins draw nothing"
+    (let [bins   (sorted-map 0 0 1 5 2 0)
+          canvas (bp/histogram (bm/new-canvas 3 4) bins)]
+      (snap! (str "\n" (bm/canvas->string canvas)) "
+⠀⣿⠀
+⠀⣿⠀
+⠀⣿⠀
+⠀⣿⠀"))))
+
+(deftest histogram-empty-bins-test
+  (testing "Empty bins returns canvas unchanged"
+    (let [canvas (bm/new-canvas 4 3)]
+      (is (= canvas (bp/histogram canvas {}))))))

@@ -51,3 +51,29 @@
          (reduce +)
          (/ (count xs))
          Math/sqrt)))
+
+(defn bin-overlap
+  "Proportion of bin i overlapping the interval [start, end)."
+  [i start end]
+  (let [bin-start (double i)
+        bin-end   (inc bin-start)]
+    (max 0.0 (- (min end bin-end) (max start bin-start)))))
+
+(defn bar-value
+  "Weighted average of bins for a bar spanning [start, end)."
+  [bins start end]
+  (let [lo (int start)
+        hi (min (count bins) (int (Math/ceil end)))]
+    (/ (transduce (map (fn [i] (* (bins i) (bin-overlap i start end))))
+                  +
+                  (range lo hi))
+       (- end start))))
+
+(defn downsample-histogram
+  "Reduce `bins` to `bar-count` values by weighted averaging."
+  [bins bar-count]
+  (let [bins  (mapv val bins)
+        n     (count bins)
+        ratio (/ (double n) bar-count)]
+    (mapv (fn [p] (bar-value bins (* p ratio) (* (inc p) ratio)))
+          (range bar-count))))
