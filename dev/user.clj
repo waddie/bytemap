@@ -85,3 +85,58 @@
 ⠅⠅⠅⠅⠅
 ⠅⠅⠅⠅⠅
 ⠅⠅⠅⠅⠅")
+
+(let [bins   (sorted-map 0 1 1 3 2 5 3 2)
+      canvas (bp/histogram (bm/new-canvas 20 30) bins :orientation :vertical)]
+  (bm/canvas->string canvas))
+
+
+(defn golden-spiral
+  "Draw the golden spiral on a canvas."
+  [canvas {:keys [center scale max-θ start-angle]}]
+  (let [φ       1.618033988749895
+        [cx cy] center
+        steps   1000]
+    (loop [i          0
+           prev-point nil
+           canvas     canvas]
+      (if (>= i steps)
+        canvas
+        (let [θ      (+ start-angle (* max-θ (/ i (dec steps))))
+              r      (* scale (Math/pow φ (/ θ (/ Math/PI 2))))
+              x      (+ cx (* r (Math/cos (- θ))))
+              y      (+ cy (* r (Math/sin (- θ))))
+              point  [(int x) (int y)]
+              canvas (if prev-point
+                       (bm/draw-line canvas prev-point point)
+                       canvas)]
+          (recur (inc i) point canvas))))))
+
+(-> (bm/new-canvas 60 20 :style :blocks)
+    (golden-spiral {:center      [60 45]
+                    :max-θ       (* 6 Math/PI)
+                    :scale       0.5
+                    :start-angle (* 0.75 Math/PI)})
+    (bm/print-canvas!))
+
+(-> (bm/new-canvas 60 20 :style :braille)
+    (golden-spiral {:center      [60 45]
+                    :max-θ       (* 6 Math/PI)
+                    :scale       0.5
+                    :start-angle (* 0.75 Math/PI)})
+    (bm/print-canvas!))
+
+(let [τ      (* 2 Math/PI)
+      c      30
+      canvas (bm/new-canvas c (/ c 2) :style :blocks)
+      r      (- c 1)
+      points 20
+      canvas (reduce (fn [canvas i]
+                       (let [angle (+ 0.1 (* i (/ τ points)))]
+                         (bm/draw-line canvas
+                                       [c c]
+                                       [(+ c (* r (Math/cos angle)))
+                                        (+ c (* r (Math/sin angle)))])))
+                     canvas
+                     (range points))]
+  (bm/print-canvas! canvas))

@@ -24,6 +24,14 @@
     {:max 3
      :min 0}]])
 
+(def Style
+  "Schema for the characters a canvas renders with"
+  [:enum :blocks :braille])
+
 (def Canvas
   "Schema for a canvas data structure"
-  [:map [:width :int] [:height :int] [:pixels [:vector ByteValue]]])
+  [:map
+   [:width :int]
+   [:height :int]
+   [:pixels [:vector ByteValue]]
+   [:style {:optional true} Style]])

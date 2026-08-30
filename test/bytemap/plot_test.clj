@@ -2,6 +2,7 @@
   "Tests for bytemap plotting functionality."
   (:require [bytemap.core :as bm]
             [bytemap.plot :as bp]
+            [clojure.string :as s]
             [clojure.test :refer [deftest is testing]]
             [still.core :refer [snap!]]))
 
@@ -12,6 +13,7 @@
              {:height 5
               :pixels [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
                        0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+              :style  :braille
               :width  10})
       (let [canvas (bp/plot canvas #(Math/sqrt (abs (- 1 (Math/pow % 2)))))]
         (snap! canvas
@@ -19,6 +21,7 @@
                 :pixels [0 128 52 22 26 95 18 166 64 0 176 1 0 0 0 71 0 0 8 70
                          46 36 36 36 36 103 36 36 36 53 0 0 0 0 0 71 0 0 0 0 0 0
                          0 0 0 71 0 0 0 0]
+                :style  :braille
                 :width  10})
         (snap! (str "\n" (bm/canvas->string canvas))
                "
@@ -90,6 +93,35 @@
        result
        (str "\n" (bp/plot->string #(Math/sin %) [10 10] Math/PI 1 :axis false))]
       (is (= expected result)))))
+
+(deftest plot->string-blocks-test
+  (testing "plot->string renders with block octants"
+    ;; Blank cells are spaces, so the expected lines live in a vector to keep
+    ;; their trailing whitespace out of the source.
+    (is (= (bp/plot->string #(Math/sin %) [10 10] Math/PI 1 :axis false :style :blocks)
+           (s/join "\n"
+                   ["      ▗𜴣𜺣 "
+                    "      ▌ 𜶅 "
+                    "     𜶖𜺨 𜴡𜺣"
+                    "     𜵛   ▌"
+                    "     ▌   ▚"
+                    "▌   𜶖𜺨   𜺫"
+                    "▐   𜵛     "
+                    "𜺫𜵈  ▌     "
+                    " 𜶅 ▐      "
+                    " ▝𜶻𜴍      "])))))
+
+(deftest histogram-blocks-test
+  (testing "Vertical histogram with block octants"
+    (let [bins   (sorted-map 0 1 1 3 2 5 3 2)
+          canvas (bp/histogram (bm/new-canvas 4 5 :style :blocks) bins)]
+      (is (= (bm/canvas->string canvas)
+             (s/join "\n"
+                     ["  █ "
+                      "  █ "
+                      " ██ "
+                      " ███"
+                      "████"]))))))
 
 (deftest histogram-vertical-basic-test
   (testing "Vertical histogram with one column-pair per bin"

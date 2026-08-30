@@ -1,23 +1,28 @@
 (ns bytemap.drawing-test
   "Tests for bytemap drawing functionality."
   (:require [bytemap.core :as bm]
+            [clojure.string :as s]
             [clojure.test :refer [deftest is testing]]))
+
+(defn ^:private union-jack
+  "Draws the union jack pattern on a canvas."
+  [canvas]
+  (let [canvas (reduce (fn [c x]
+                         (-> c
+                             (bm/draw-point [x x])
+                             (bm/draw-point [x (- 20 x)])))
+                       canvas
+                       (range 21))]
+    (reduce (fn [c x]
+              (-> c
+                  (bm/draw-point [10 x])
+                  (bm/draw-point [x 10])))
+            canvas
+            (range 21))))
 
 (deftest union-jack-test
   (testing "Drawing the union jack pattern"
-    (let [canvas (bm/new-canvas 10 5)
-          canvas (reduce (fn [c x]
-                           (-> c
-                               (bm/draw-point [x x])
-                               (bm/draw-point [x (- 20 x)])))
-                         canvas
-                         (range 21))
-          canvas (reduce (fn [c x]
-                           (-> c
-                               (bm/draw-point [10 x])
-                               (bm/draw-point [x 10])))
-                         canvas
-                         (range 21))]
+    (let [canvas (union-jack (bm/new-canvas 10 5))]
       (is (= (str "\n" (bm/canvas->string canvas))
              "
 ⠑⢄⠀⠀⠀⡇⠀⠀⢀⠔
@@ -25,6 +30,19 @@
 ⠤⠤⠤⠤⢵⣷⠥⠤⠤⠤
 ⠀⠀⢀⠔⠁⡇⠑⢄⠀⠀
 ⢀⠔⠁⠀⠀⡇⠀⠀⠑⢄")))))
+
+(deftest union-jack-blocks-test
+  (testing "Drawing the union jack pattern with block octants"
+    ;; Blank cells are spaces, so the expected lines live in a vector to
+    ;; keep their trailing whitespace out of the source.
+    (let [canvas (union-jack (bm/new-canvas 10 5 :style :blocks))]
+      (is (= (bm/canvas->string canvas)
+             (s/join "\n"
+                     ["𜴄𜶀   ▌  𜺠𜴐"
+                      "  𜴄𜶀 ▌𜺠𜴐𜺨 "
+                      "𜴧𜴧𜴧𜴧𜶥𜷤𜴨𜴧𜴧𜴧"
+                      "  𜺠𜴐𜺨▌𜴄𜶀  "
+                      "𜺠𜴐𜺨  ▌  𜴄𜶀"]))))))
 
 (deftest fill-test
   (testing "Filling entire canvas"

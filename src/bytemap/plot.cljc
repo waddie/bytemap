@@ -134,13 +134,17 @@
                  :cljs (throw (str "Unknown orientation " orientation)))))))
 
 (defn plot-histogram
-  "Plots and prints a histogram on a new canvas."
+  "Plots and prints a histogram on a new canvas.
+
+  Options:
+  - :style - The characters to render with, :braille (default) or :blocks"
   {:malli/schema [:function [:=> [:cat [:seqable number?]] :nil]
                   [:=> [:cat [:seqable number?] [:* :any]] :nil]]}
   [xs &
-   {:keys [w h stats orientation]
+   {:keys [w h stats orientation style]
     :or   {orientation :vertical
-           stats       true}}]
+           stats       true
+           style       :braille}}]
   (let [bins      (into (sorted-map) (frequencies xs))
         bin-count (count (keys bins))
         max-bin   (apply max (vals bins))
@@ -149,7 +153,7 @@
                     (or w bin-count)
                     (or h bin-count))
         height    (if (= orientation :vertical) (or h max-bar) (or w max-bar))
-        hist      (histogram (new-canvas width height)
+        hist      (histogram (new-canvas width height :style style)
                              bins
                              :orientation
                              orientation)]
@@ -170,14 +174,16 @@
   - y-scale: The range of y values (from -y-scale to +y-scale)
 
   Options:
-  - :axis - Whether to draw x and y axes (default: true)"
+  - :axis - Whether to draw x and y axes (default: true)
+  - :style - The characters to render with, :braille (default) or :blocks"
   {:malli/schema
    [:function [:=> [:cat fn? [:tuple :int :int] number? number?] :string]
     [:=> [:cat fn? [:tuple :int :int] number? number? [:* :any]] :string]]}
   [f [w h] x-scale y-scale &
-   {:keys [axis]
-    :or   {axis true}}]
-  (-> (new-canvas w h)
+   {:keys [axis style]
+    :or   {axis  true
+           style :braille}}]
+  (-> (new-canvas w h :style style)
       (plot f :x-scale x-scale :y-scale y-scale :axis axis)
       canvas->string))
 
@@ -191,14 +197,16 @@
   - y-scale: The range of y values (from -y-scale to +y-scale)
 
   Options:
-  - :axis - Whether to draw x and y axes (default: true)"
+  - :axis - Whether to draw x and y axes (default: true)
+  - :style - The characters to render with, :braille (default) or :blocks"
   {:malli/schema
    [:function [:=> [:cat fn? [:tuple :int :int] number? number?] :nil]
     [:=> [:cat fn? [:tuple :int :int] number? number? [:* :any]] :nil]]}
   [f [w h] x-scale y-scale &
-   {:keys [axis]
-    :or   {axis true}}]
-  (let [s     (plot->string f [w h] x-scale y-scale :axis axis)
+   {:keys [axis style]
+    :or   {axis  true
+           style :braille}}]
+  (let [s     (plot->string f [w h] x-scale y-scale :axis axis :style style)
         lines (s/split s #"\n")]
     (doseq [line lines]
       (println line))

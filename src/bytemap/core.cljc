@@ -1,9 +1,10 @@
 (ns bytemap.core
-  "Text-based canvas using braille characters.
+  "Text-based canvas using braille or block octant characters.
 
-  Bytemap creates bitmaps using Unicode braille characters, where each character
-  represents a 2x4 grid of pixels. This enables reasonably high-resolution
-  text-based graphics in terminal output."
+  Bytemap creates bitmaps using Unicode characters that divide a character cell
+  into a 2x4 grid of pixels: braille patterns by default, or the Unicode 16
+  block octants. This enables reasonably high-resolution text-based graphics in
+  terminal output."
   (:require [bytemap.schema :as schema]
             [bytemap.util :as util]
             [clojure.string :as s]
@@ -13,6 +14,40 @@
 
 ;; Constants
 (def ^:private braille-offset 0x2800)
+
+(def ^:private block-offset 0x1CD00)
+
+(def ^:private legacy-blocks
+  "Octant patterns Unicode encodes outside the Block Octants range: the space,
+  the quadrants, and the half and quarter blocks that predate it.
+
+  Keys are row-major octant bitmasks, bit 0 top-left through bit 7 bottom-right."
+  {2r00000000 0x0020  ; space
+   2r00000001 0x1CEA8 ; left half upper one quarter
+   2r00000010 0x1CEAB ; right half upper one quarter
+   2r00000011 0x1FB82 ; upper one quarter
+   2r00000101 0x2598  ; quadrant upper left
+   2r00001010 0x259D  ; quadrant upper right
+   2r00001111 0x2580  ; upper half
+   2r00010100 0x1FBE6 ; middle left one quarter
+   2r00101000 0x1FBE7 ; middle right one quarter
+   2r00111111 0x1FB85 ; upper three quarters
+   2r01000000 0x1CEA3 ; left half lower one quarter
+   2r01010000 0x2596  ; quadrant lower left
+   2r01010101 0x258C  ; left half
+   2r01011010 0x259E  ; quadrant upper right and lower left
+   2r01011111 0x259B  ; quadrant upper left, upper right and lower left
+   2r10000000 0x1CEA0 ; right half lower one quarter
+   2r10100000 0x2597  ; quadrant lower right
+   2r10100101 0x259A  ; quadrant upper left and lower right
+   2r10101010 0x2590  ; right half
+   2r10101111 0x259C  ; quadrant upper left, upper right and lower right
+   2r11000000 0x2582  ; lower one quarter
+   2r11110000 0x2584  ; lower half
+   2r11110101 0x2599  ; quadrant upper left, lower left and lower right
+   2r11111010 0x259F  ; quadrant upper right, lower left and lower right
+   2r11111100 0x2586  ; lower three quarters
+   2r11111111 0x2588})  ; full block
 
 ;; Core Functions
 
@@ -48,6 +83,62 @@
 (snap! (bit-of-subpixel [0 0]) 0)
 (snap! (bit-of-subpixel [1 3]) 7)
 
+(def ^:private block-chars
+  "Byte value (in braille bit order) to block octant character.
+
+  Unicode encodes 230 of the 256 patterns in the Block Octants range, in
+  ascending order of a row-major bitmask, skipping the 26 patterns already
+  encoded elsewhere. Bytes are stored in braille bit order, so the table is
+  built pre-permuted and indexes exactly like `braille`."
+  (let [codepoints (:chars (reduce (fn [{:keys [chars cp]} pattern]
+                                     (if-let [legacy (legacy-blocks pattern)]
+                                       {:chars (conj chars legacy)
+                                        :cp    cp}
+                                       {:chars (conj chars cp)
+                                        :cp    (inc cp)}))
+                                   {:chars []
+                                    :cp    block-offset}
+                                   (range 256)))
+        octant-bit (into {}
+                         (for [x (range 2)
+                               y (range 4)]
+                           [(bit-of-subpixel [x y]) (+ (* 2 y) x)]))]
+    (mapv (fn [byte-val]
+            (let [pattern (reduce (fn [pattern bit]
+                                    (cond-> pattern
+                                      (bit-test byte-val bit)
+                                      (bit-set (octant-bit bit))))
+                                  0
+                                  (range 8))
+                  cp      (nth codepoints pattern)]
+              ;; Most octants sit above the BMP, so a single char will not
+              ;; do
+              #?(:clj (String. (Character/toChars cp))
+                 :cljs (js/String.fromCodePoint cp))))
+          (range 256))))
+
+(defn block
+  "Converts a byte (0-255) to a Unicode block octant character.
+
+  Each bit in the byte corresponds to one of the 8 cells of the 2x4 grid, using
+  the same layout as `braille`."
+  {:malli/schema [:function [:=> [:cat schema/ByteValue] :string]]}
+  [byte-val]
+  (nth block-chars byte-val))
+
+(snap! (block 0) " ")
+(snap! (block 3) "▘")
+(snap! (block 255) "█")
+
+(defn ^:private style->glyph
+  "Returns the byte to character function for a canvas style."
+  [style]
+  (case style
+    :braille braille
+    :blocks block
+    #?(:clj (throw (RuntimeException. (str "Unknown style " style)))
+       :cljs (throw (str "Unknown style " style)))))
+
 (defn set-subpixel
   "Sets or clears a specific subpixel in a byte value.
 
@@ -64,18 +155,27 @@
 (defn new-canvas
   "Creates a new canvas with the specified width and height in 'pixels'.
 
-  Each pixel is a braille character representing a 2x4 grid of subpixels.
-  So, a 10x5 canvas has dimensions of 20x20 in subpixel coordinates."
-  {:malli/schema [:function [:=> [:cat :int :int] schema/Canvas]]}
-  [width height]
+  Each pixel is a character representing a 2x4 grid of subpixels. So, a 10x5
+  canvas has dimensions of 20x20 in subpixel coordinates.
+
+  Options:
+  - :style - :braille (default) or :blocks, the characters the canvas renders
+             with. :blocks needs a font with Unicode 16 block octants."
+  {:malli/schema [:function [:=> [:cat :int :int] schema/Canvas]
+                  [:=> [:cat :int :int [:* :any]] schema/Canvas]]}
+  [width height &
+   {:keys [style]
+    :or   {style :braille}}]
   {:height height
    :pixels (vec (repeat (* width height) 0))
+   :style  style
    :width  width})
 
 (snap! (new-canvas 10 5)
        {:height 5
         :pixels [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
                  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+        :style  :braille
         :width  10})
 
 (defn bounds
@@ -118,21 +218,24 @@
            (draw-point [4 4]))
        {:height 2
         :pixels [0 0 0 0 0 0 1 0]
+        :style  :braille
         :width  4})
 
 (defn canvas->string
-  "Converts a canvas to a string representation using braille characters.
+  "Converts a canvas to a string representation, using the canvas style.
 
   Returns a multi-line string where each line represents one row of the canvas."
   {:malli/schema [:function [:=> [:cat schema/Canvas] :string]]}
-  [{:keys [width height pixels]}]
-  (apply str
-         (for [y (range height)]
-           (str (apply str
-                       (for [x    (range width)
-                             :let [i (+ (* y width) x)]]
-                         (braille (nth pixels i))))
-                (when (< y (dec height)) "\n")))))
+  [{:keys [width height pixels style]
+    :or   {style :braille}}]
+  (let [glyph (style->glyph style)]
+    (apply str
+           (for [y (range height)]
+             (str (apply str
+                         (for [x    (range width)
+                               :let [i (+ (* y width) x)]]
+                           (glyph (nth pixels i))))
+                  (when (< y (dec height)) "\n"))))))
 
 (snap! (str "\n"
             (-> (new-canvas 5 3)
@@ -144,7 +247,7 @@
 ⠀⠀⠀⠀⠀")
 
 (defn print-canvas!
-  "Prints a canvas to stdout using braille characters.
+  "Prints a canvas to stdout using the canvas style.
 
   Outputs line-by-line to avoid buffer boundary issues with multibyte characters."
   {:malli/schema [:function [:=> [:cat schema/Canvas] :nil]]}
@@ -221,4 +324,5 @@
         :pixels [17 132 0 0 0 0 0 0 128 20 0 0 17 132 0 0 128 20 1 0 0 0 0 0 145
                  148 1 0 0 0 0 0 128 20 1 0 17 132 0 0 128 20 1 0 0 0 0 0 17
                  132]
+        :style  :braille
         :width  10})

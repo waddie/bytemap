@@ -2,9 +2,9 @@
 
 # Bytemap (Clojure)
 
-`bytemap` is a library for creating text-based graphics using Unicode braille characters.
+`bytemap` is a library for creating text-based graphics using Unicode braille or block octant characters.
 
-Each braille character contains 8 “pixels” arranged in a 2x4 grid, allowing for reasonably high-resolution terminal output.
+Each character contains 8 “pixels” arranged in a 2x4 grid, allowing for reasonably high-resolution terminal output.
 
 This is a Clojure(Script) port of [Ian Henry’s Janet library](https://github.com/ianthehenry/bytemap).
 
@@ -72,6 +72,29 @@ Add to your `deps.edn`:
 ;; ⢀⠔⠁⠀⠀⡇⠀⠀⠑⢄
 ```
 
+### Block Octants
+
+Canvases render with braille by default. Pass `:style :blocks` to use the
+Unicode 16 block octants instead. The previous example drawn with blocks:
+
+```clojure
+(-> (bm/new-canvas 10 5 :style :blocks)
+    (bm/draw-line [0 0] [20 20])
+    (bm/draw-line [0 20] [20 0])
+    (bm/print-canvas!))
+;; 𜴄𜶀      𜺠𜴐
+;;   𜴄𜶀  𜺠𜴐𜺨
+;;     𜵹𜶈𜺨
+;;   𜺠𜴐𜺨 𜴄𜶀
+;; 𜺠𜴐𜺨     𜴄𜶀
+```
+
+Note that block octants were added in Unicode 16.0 (September 2024) and font
+coverage is still thin.
+
+Empty cells render as spaces rather than the blank braille pattern, so block
+output has trailing whitespace where braille output does not.
+
 ### Plotting Functions
 
 ```clojure
@@ -89,7 +112,7 @@ Add to your `deps.edn`:
 ;; ⠀⠀⠀⠀⠀⠀⠑⢤⣀⣀⢀⣀⡤⠊⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 
 ;; Get plot as a string (no side effects)
-(def plot-str (bm/plot->string #(Math/cos %) [40 10] Math/PI 1))
+(def plot-str (bp/plot->string #(Math/cos %) [40 10] Math/PI 1))
 
 ;; Plot without axes
 (bp/print-plot! #(Math/sin %) [40 10] Math/PI 1 :axis false)
@@ -154,7 +177,7 @@ Add to your `deps.edn`:
 
 ### Canvas Creation and Rendering (bytemap.core)
 
-- `(new-canvas width height)` - Creates a new canvas. Dimensions are in “pixels” (braille characters), where each pixel is 2x4 sub-pixels.
+- `(new-canvas width height & {:keys [style]})` - Creates a new canvas. Dimensions are in “pixels” (characters), where each pixel is 2x4 sub-pixels. `:style` is `:braille` (default) or `:blocks`.
 - `(bounds canvas)` - Returns `[width height]` in sub-pixels.
 - `(canvas->string canvas)` - Converts canvas to a string.
 - `(print-canvas! canvas)` - Prints canvas to standard output (side-effecting).
@@ -168,16 +191,17 @@ Add to your `deps.edn`:
 ### Plotting Functions (bytemap.plot)
 
 - `(plot canvas f & {:keys [axis x-scale y-scale]})` - Plots a function.
-- `(plot->string f [w h] x-scale y-scale & {:keys [axis]})` - Plots a function and returns the string representation.
-- `(print-plot! f [w h] x-scale y-scale & {:keys [axis]})` - Plots a function, prints to standard output, and returns nil.
+- `(plot->string f [w h] x-scale y-scale & {:keys [axis style]})` - Plots a function and returns the string representation.
+- `(print-plot! f [w h] x-scale y-scale & {:keys [axis style]})` - Plots a function, prints to standard output, and returns nil.
 - `(histogram canvas bins & {:keys [orientation]})` - Draws a histogram of `bins` (a map of value → count, e.g. `clojure.core/frequencies` output) on a canvas, with `:vertical` (default) or `:horizontal` bars. Downsamples via `bytemap.util/downsample-histogram` if `bins` has more entries than available columns/rows. Returns new canvas.
-- `(plot-histogram xs & {:keys [w h stats orientation]})` - Convenience function: computes `(frequencies xs)`, builds and prints a histogram sized to fit (or to explicit `w`/`h` pixels), and prints `μ`/`σ` statistics by default (`:stats false` to suppress). Returns nil.
+- `(plot-histogram xs & {:keys [w h stats orientation style]})` - Convenience function: computes `(frequencies xs)`, builds and prints a histogram sized to fit (or to explicit `w`/`h` pixels), and prints `μ`/`σ` statistics by default (`:stats false` to suppress). Returns nil.
 
 ### Low-Level Functions (bytemap.core)
 
 - `(braille byte-val)` - Converts a byte (0–255) to a braille character.
-- `(bit-of-sub-pixel [x y])` - Maps sub-pixel coordinates to bit position.
-- `(set-sub-pixel num [x y] value)` - Sets or clears a specific sub-pixel bit.
+- `(block byte-val)` - Converts a byte (0–255) to a block octant character.
+- `(bit-of-subpixel [x y])` - Maps sub-pixel coordinates to bit position.
+- `(set-subpixel num [x y] value)` - Sets or clears a specific sub-pixel bit.
 
 ## License
 
